@@ -1406,9 +1406,18 @@ class RDJob:
         self.high_power_warning = False
         self.first_layer = True
         # Optional: Set Tick count.
-        self.ref_point_2()  # abs_pos
-        self.set_absolute()
-        self.ref_point_set()
+        # NOTE: previously forced the job's absolute-coordinate reference to
+        # REF_POINT_2 (machine zero / hard-limit-switch origin) here.
+        # Interactive moves (RuidaDriver.move_abs/move_rel - jogging and
+        # "outline") never select a reference point at all, so they run
+        # under whatever the controller already has active - normally its
+        # panel-configured REF_POINT_1 (anchor point). If that anchor point
+        # is offset from true machine zero (a common, legitimate setup),
+        # forcing REF_POINT_2 here made every real job's absolute coordinates
+        # land at a constant offset from where interactive moves (and thus
+        # MeerK40t's own bed calibration) put them. Not selecting a
+        # reference here leaves the job on the same ambient reference as
+        # interactive moves, so both agree.
         self.enable_block_cutting(0)
         # Optional: Set File Property 1
         self.start_process()
