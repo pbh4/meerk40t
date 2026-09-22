@@ -79,6 +79,18 @@ class RuidaController:
         self._last_z = 0.0
         self._last_u = 0.0
         self.show_cursor = self.service.setting(bool, "signal_updates", True)
+        # While True (the normal, idle/jogging state), hardware position
+        # feedback is allowed to write into service.driver.native_x/native_y -
+        # RuidaController.wait_for_move() (used by move_abs/move_rel) polls
+        # exactly those attributes to detect when an interactive move has
+        # physically completed. RuidaDriver.plot_start() sets this False for
+        # the duration of its encode loop: that loop issues a long sequence
+        # of RELATIVE moves back to back, computing each one's delta from
+        # native_x/native_y, without waiting for physical confirmation
+        # in between - a concurrent hardware-feedback write there would race
+        # and corrupt the next delta, and the controller would reject the
+        # resulting move as exceeding its limits.
+        self.track_driver_position = True
 
     def start_sending(self):
         self._send_thread = threading.Thread(target=self._data_sender, daemon=True)
@@ -274,7 +286,8 @@ class RuidaController:
             self._y_read = False
             self._native_x = _native_x
             self._update_position()
-        self.service.driver.native_x = x
+        if self.track_driver_position:
+            self.service.driver.native_x = x
 
     def update_y(self, y):
         # The (y + 50) adjusts for a rounding error on the Ruida display.
@@ -283,7 +296,8 @@ class RuidaController:
         if _native_y != self._native_y or self._x_read:
             self._native_y = _native_y
             self._update_position()
-        self.service.driver.native_y = y
+        if self.track_driver_position:
+            self.service.driver.native_y = y
 
     def update_z(self, z):
         _z = round(z * UNITS_PER_uM, 1)

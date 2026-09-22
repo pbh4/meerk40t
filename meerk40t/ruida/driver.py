@@ -178,6 +178,10 @@ class RuidaDriver(Parameters):
         # hardware feedback (RuidaController._update_position) keep driving
         # the reticle instead, uninterrupted, through the job.
         self.events("Plotting")
+        # Suspend hardware-feedback writes to self.native_x/native_y for the
+        # duration of the encode loop below - see
+        # RuidaController.track_driver_position.
+        self.controller.track_driver_position = False
         # Write layer header information.
         self.controller.start_record()
         self.controller.job.write_header(self.queue)
@@ -303,6 +307,7 @@ class RuidaDriver(Parameters):
         # Ruida end data.
         self.controller.job.write_tail()
         self.controller.stop_record()
+        self.controller.track_driver_position = True
         return False
 
     def move_abs(self, x, y):
@@ -328,7 +333,7 @@ class RuidaDriver(Parameters):
             job.rapid_move_x(dx, output=out)
         else:
             job.rapid_move_xy(x, y, origin=True, output=out)  # Not relative
-        self.controller.wait_for_move(x, y)
+        self._wait_for_move_confirmed(x, y)
 
     def move_rel(self, dx, dy, confined=False):
         """
@@ -372,7 +377,25 @@ class RuidaDriver(Parameters):
                 origin=True,
                 output=out,
             )
-        self.controller.wait_for_move(self.native_x + dx, self.native_y + dy)
+        self._wait_for_move_confirmed(self.native_x + dx, self.native_y + dy)
+
+    def _wait_for_move_confirmed(self, x, y):
+        """
+        Waits for hardware feedback to confirm an interactive move reached
+        (x, y), same as controller.wait_for_move(). If this happens to run
+        mid-job (e.g. a HomeCut calling home()->move_abs() from within
+        plot_start()'s encode loop, which sets track_driver_position False
+        so concurrent hardware feedback can't corrupt the job's relative
+        move deltas - see RuidaController.track_driver_position), force
+        tracking on just for this wait so it can actually complete, then put
+        it back the way the encode loop left it.
+        """
+        prior = self.controller.track_driver_position
+        self.controller.track_driver_position = True
+        try:
+            self.controller.wait_for_move(x, y)
+        finally:
+            self.controller.track_driver_position = prior
 
     def focusz(self):
         """
