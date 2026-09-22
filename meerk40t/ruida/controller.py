@@ -58,8 +58,6 @@ class RuidaController:
         self.machine_status = None
         self.bed_x = -1.0
         self.bed_y = -1.0
-        self.x = -1.0
-        self.y = -1.0
         self.z = -1.0
         self.u = -1.0
         self._last_card_id = b''
@@ -67,8 +65,17 @@ class RuidaController:
         self._y_read = False
         self._last_bed_x = -1.0
         self._last_bed_y = -1.0
-        self._last_x = 0.0
-        self._last_y = 0.0
+        # Native (device) coordinates as reported by the Ruida status
+        # feedback registers, already corrected for the small rounding
+        # offset the Ruida firmware applies, but NOT direction-flipped -
+        # they live in the same native coordinate space as
+        # driver.native_x/native_y, so they must go through
+        # service.view.iposition() (like service.current does) to become
+        # correct scene coordinates that respect flip_x/home_corner/swap_xy.
+        self._native_x = -1
+        self._native_y = -1
+        self._last_x = 0
+        self._last_y = 0
         self._last_z = 0.0
         self._last_u = 0.0
         self.show_cursor = self.service.setting(bool, "signal_updates", True)
@@ -243,38 +250,40 @@ class RuidaController:
 
     def _update_position(self):
         if self._x_read and self._y_read:
-            # Signal the GUI update - convert to system units.
-            _last_x = Length(f'{self._last_x}mm').units
-            _last_y = Length(f'{self._last_y}mm').units
-            _x = Length(f'{self.x}mm').units
-            _y = Length(f'{self.y}mm').units
+            # Signal the GUI update - map native (device) coordinates to
+            # scene coordinates via the device's own view transform, the
+            # same one used for real moves (service.current), so the
+            # reported position respects flip_x/flip_y/home_corner/swap_xy
+            # instead of assuming a fixed physical orientation.
+            _last_x, _last_y = self.service.view.iposition(self._last_x, self._last_y)
+            _x, _y = self.service.view.iposition(self._native_x, self._native_y)
 
             if self.show_cursor:
                 self.service.signal("driver;position", (_last_x, _last_y, _x, _y))
             self._x_read = False
             self._y_read = False
-            self._last_x = self.x
-            self._last_y = self.y
+            self._last_x = self._native_x
+            self._last_y = self._native_y
 
     def update_x(self, x):
         # The (x - 50) adjusts for a rounding error on the Ruida display.
-        _x = round(self.bed_x - (x - 50) / 1000, 1)
+        _native_x = x - 50
         self._x_read = True
-        if _x != self.x or self._y_read:
+        if _native_x != self._native_x or self._y_read:
             # Only X and then Y are updated. This avoids stair-stepping.
             self._y_read = False
-            self.x = _x
+            self._native_x = _native_x
             self._update_position()
-            self.service.driver.native_x = x
+        self.service.driver.native_x = x
 
     def update_y(self, y):
-        # The (y - 50) adjusts for a rounding error on the Ruida display.
-        _y = round((y + 50) / 1000, 1)
+        # The (y + 50) adjusts for a rounding error on the Ruida display.
+        _native_y = y + 50
         self._y_read = True
-        if _y != self.y or self._x_read:
-            self.y = _y
+        if _native_y != self._native_y or self._x_read:
+            self._native_y = _native_y
             self._update_position()
-            self.service.driver.native_y = y
+        self.service.driver.native_y = y
 
     def update_z(self, z):
         _z = round(z * UNITS_PER_uM, 1)
@@ -401,8 +410,8 @@ class RuidaController:
     def wait_idle(self):
         while not self._idle and self.service.connected:
             time.sleep(0.025)
-        self.x = -1
-        self.y = -1
+        self._native_x = -1
+        self._native_y = -1
 
     def sync(self):
         '''Resync the status monitor.'''
