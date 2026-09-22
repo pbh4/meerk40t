@@ -168,12 +168,16 @@ class RuidaDriver(Parameters):
 
         @return:
         """
-        # Normally, only status updates move the cursor to avoid a bouncy cursor.
-        # When processing a job the status update is disabled and instead the
-        # cursor is updated to show plot progress.
+        # This loop encodes the whole job into an in-memory buffer almost
+        # instantly, well before stop_record() below hands it off to be
+        # actually transmitted/executed. Signalling "driver;position" here
+        # (as this used to, via self._signal_updates + disabling
+        # controller.show_cursor) races the reticle far ahead of the real
+        # laser position for the job's whole duration. Leave
+        # self._signal_updates at its __init__ default (False) and let real
+        # hardware feedback (RuidaController._update_position) keep driving
+        # the reticle instead, uninterrupted, through the job.
         self.events("Plotting")
-        self._signal_updates = self.service.setting(bool, "signal_updates", True)
-        self.controller.show_cursor = False
         # Write layer header information.
         self.controller.start_record()
         self.controller.job.write_header(self.queue)
@@ -299,8 +303,6 @@ class RuidaDriver(Parameters):
         # Ruida end data.
         self.controller.job.write_tail()
         self.controller.stop_record()
-        self.controller.show_cursor = self.service.setting(bool, "signal_updates", True)
-        self._signal_updates = False
         return False
 
     def move_abs(self, x, y):
