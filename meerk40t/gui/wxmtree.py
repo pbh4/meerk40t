@@ -1376,13 +1376,26 @@ class ShadowTree:
         startnode = self.elements._tree._item
 
         def expand_leaf(snode):
+            # Snapshot the children before touching any of them: Expand()
+            # can trigger lazy child population, and recursing into a
+            # nested GetFirstChild/GetNextChild walk while the outer
+            # cookie (from this level's GetFirstChild/GetNextChild) is
+            # still live invalidates that cookie - wx's tree iteration
+            # cookie assumes nothing else mutates or re-walks the tree
+            # while it is in use. That invalidated cookie caused a
+            # segfault inside wxGenericTreeCtrl::GetNextChild(). See
+            # collapse_within() above for the same safe snapshot-then-act
+            # pattern.
+            children = []
             child, cookie = self.wxtree.GetFirstChild(snode)
             while child.IsOk():
+                children.append(child)
+                child, cookie = self.wxtree.GetNextChild(snode, cookie)
+            for child in children:
                 node = self.wxtree.GetItemData(child)
                 if node.expanded:
                     self.wxtree.Expand(child)
                 expand_leaf(child)
-                child, cookie = self.wxtree.GetNextChild(snode, cookie)
 
         expand_leaf(startnode)
         self.elements.signal("warn_state_update")
