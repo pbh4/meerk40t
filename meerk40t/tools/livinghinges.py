@@ -682,6 +682,13 @@ class HingePanel(wx.Panel):
 
         if OPTIMIZATION_AVAILABLE and selected_algorithm != "pattern":
             path = self._generate_with_optimization(selected_algorithm)
+            if path is None:
+                # _generate_with_optimization() failed (see its printed
+                # "Optimization failed: ..." message) - fall back to the
+                # original pattern-based generation instead of silently
+                # producing nothing.
+                self.hinge_generator.generate(show_outline=False, final=True)
+                path = copy(self.hinge_generator.path)
         else:
             # Use original pattern-based generation
             self.hinge_generator.generate(show_outline=False, final=True)
