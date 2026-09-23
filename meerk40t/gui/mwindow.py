@@ -66,6 +66,17 @@ class MWindow(wx.Frame, Module):
         if self.window_save:
             self.window_context.setting(int, "width", width)
             self.window_context.setting(int, "height", height)
+            if not honor_initial_values:
+                # A previously saved size can be smaller than what this
+                # window's current content actually needs, e.g. after a
+                # later MeerK40t version added more controls to it. Never
+                # restore smaller than the size sizer.Fit() just computed
+                # above, or the newly added controls end up clipped off
+                # below the visible window with no way to reach them.
+                if self.window_context.width < width:
+                    self.window_context.width = width
+                if self.window_context.height < height:
+                    self.window_context.height = height
             if self.window_context.width < 100:
                 self.window_context.width = 100
             if self.window_context.height < 100:
