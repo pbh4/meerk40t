@@ -389,6 +389,9 @@ class TreePanel(wx.Panel):
         self.Bind(
             wx.EVT_TREE_STATE_IMAGE_CLICK, self.shadow_tree.on_state_icon, self.wxtree
         )
+        self.Bind(
+            wx.EVT_TREE_DELETE_ITEM, self.shadow_tree.on_item_deleted, self.wxtree
+        )
 
         self.wxtree.Bind(wx.EVT_MOTION, self.shadow_tree.on_mouse_over)
         self.wxtree.Bind(wx.EVT_LEAVE_WINDOW, self.on_lost_focus, self.wxtree)
@@ -2485,6 +2488,24 @@ class ShadowTree:
         activate = self.elements.lookup("function/open_property_window_for_node")
         if activate is not None:
             activate(first_element)
+
+    def on_item_deleted(self, event):
+        """
+        wx is deleting this tree item (via Delete, DeleteChildren or
+        DeleteAllItems). Clear the owning node's reference to it, otherwise
+        the node keeps a dangling wxTreeItemId (IsOk() still returns True)
+        and a later SetItemTextColour/SetItemImage on it segfaults. This
+        happens e.g. after undo, where restore_tree() orphans all old nodes
+        while queued refresh_tree signals still hold them.
+        """
+        item = event.GetItem()
+        try:
+            node = self.wxtree.GetItemData(item)
+        except RuntimeError:
+            node = None
+        if node is not None and node._item is not None and node._item == item:
+            node._item = None
+        event.Skip()
 
     def on_collapse(self, event):
         if self.do_not_select:
