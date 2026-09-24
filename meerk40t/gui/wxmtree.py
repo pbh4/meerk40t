@@ -62,9 +62,6 @@ def register_panel_tree(window, context):
     if lastpage is None or lastpage < 0 or lastpage > 2:
         lastpage = 0
 
-    basic_op = BasicOpPanel(window, wx.ID_ANY, context=context)
-    wxtree = TreePanel(window, wx.ID_ANY, context=context)
-
     def on_panel_change(context):
         def handler(event):
             mycontext.root.setting(int, "tree_panel_page", 1)
@@ -91,6 +88,10 @@ def register_panel_tree(window, context):
         | wx.aui.AUI_NB_TAB_MOVE
         | wx.aui.AUI_NB_BOTTOM,
     )
+
+    # wxWidgets 3.3+ requires pages to be children of the notebook, not the parent window
+    basic_op = BasicOpPanel(notetab, wx.ID_ANY, context=context)
+    wxtree = TreePanel(notetab, wx.ID_ANY, context=context)
     context.themes.set_window_colors(notetab)
     bg_std = context.themes.get("win_bg")
     bg_active = context.themes.get("highlight")
@@ -692,9 +693,8 @@ class ShadowTree:
         self.elements.unlisten_tree(self)
 
     def setup_state_images(self):
-        self.state_images = wx.ImageList()
+        self.state_images = wx.ImageList(self.iconsize, self.iconsize)
         self.iconstates = {}
-        self.state_images.Create(width=self.iconsize, height=self.iconsize)
         image = icons8_lock.GetBitmap(
             resize=(self.iconsize, self.iconsize),
             noadjustment=True,
@@ -1316,8 +1316,7 @@ class ShadowTree:
                 if self.tree_images is not None:
                     self.tree_images.Destroy()
                     self.image_cache = []
-                self.tree_images = wx.ImageList()
-                self.tree_images.Create(width=self.iconsize, height=self.iconsize)
+                self.tree_images = wx.ImageList(self.iconsize, self.iconsize)
 
                 self.wxtree.SetImageList(self.tree_images)
             if target == "regmarks":
@@ -1580,6 +1579,9 @@ class ShadowTree:
         cached_id = -1
         # Do we have a standard representation?
         defaultcolor = Color("black")
+        if node is None:
+            # Dangling reference (target node was deleted)
+            return defaultcolor, image, cached_id
         if mini_icon:
             if node.type == "elem image":
                 try:

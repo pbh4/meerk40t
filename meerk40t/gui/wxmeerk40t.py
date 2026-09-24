@@ -7,6 +7,25 @@ from datetime import datetime
 import wx
 from wx import aui
 
+# wxWidgets 3.3+ requires notebook pages to be children of the notebook.
+# Patch AddPage/InsertPage to auto-reparent so all device-driver dialogs work
+# without per-file fixes.
+_orig_aui_nb_addpage = wx.aui.AuiNotebook.AddPage
+_orig_aui_nb_insertpage = wx.aui.AuiNotebook.InsertPage
+
+def _patched_addpage(self, page, caption, select=False, bitmap=wx.NullBitmap):
+    if page.GetParent() != self:
+        page.Reparent(self)
+    return _orig_aui_nb_addpage(self, page, caption, select, bitmap)
+
+def _patched_insertpage(self, page_idx, page, caption, select=False, bitmap=wx.NullBitmap):
+    if page.GetParent() != self:
+        page.Reparent(self)
+    return _orig_aui_nb_insertpage(self, page_idx, page, caption, select, bitmap)
+
+wx.aui.AuiNotebook.AddPage = _patched_addpage
+wx.aui.AuiNotebook.InsertPage = _patched_insertpage
+
 from meerk40t.core.units import Length
 from meerk40t.gui.consolepanel import Console
 from meerk40t.gui.navigationpanels import Navigation

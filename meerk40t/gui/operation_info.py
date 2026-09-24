@@ -76,8 +76,7 @@ class OpInfoPanel(ScrolledPanel):
     
         self.opinfo = get_operation_info()
 
-        self.state_images = wx.ImageList()
-        self.state_images.Create(width=25, height=25)
+        self.state_images = wx.ImageList(25, 25)
         for key in self.opinfo:
             info = self.opinfo[key]
             image_id = self.state_images.Add(
