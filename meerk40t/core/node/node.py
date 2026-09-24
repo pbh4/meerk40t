@@ -496,6 +496,11 @@ class Node:
         branches = [links[id(c)][1] for c in tree_data]
         self._children.extend(branches)
         self._validate_tree()
+        # Every node was replaced by a copy: cached element/op lists (e.g.
+        # Elemental.elems()) still hold the old, orphaned nodes. Invalidate.
+        root = self._root
+        if root is not None and hasattr(root, "notify_tree_structure_changed"):
+            root.notify_tree_structure_changed()
 
     def _validate_links(self, links):
         for uid, n in links.items():
