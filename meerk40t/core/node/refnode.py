@@ -25,7 +25,7 @@ class ReferenceNode(Node):
         default_map = super().default_map(default_map=default_map)
         default_map["element_type"] = "Reference"
         default_map["reference"] = str(self.node)
-        default_map["ref_nid"] = str(self.node.id)
+        default_map["ref_nid"] = "-" if self.node is None else str(self.node.id)
         default_map["ref_id"] = str(self.id)
         return default_map
 

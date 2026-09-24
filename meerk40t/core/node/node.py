@@ -555,8 +555,11 @@ class Node:
                     node_copy.node = copied_referenced
                     copied_referenced._references.append(node_copy)
                 except KeyError:
-                    # Referenced node is not in the backup, clear the reference
+                    # Referenced node is not in the backup: the reference is
+                    # dangling, drop it rather than leaving a reference with
+                    # node=None in the tree (consumers assume ref.node is set).
                     node_copy.node = None
+                    copied_parent._children.remove(node_copy)
 
     def _validate_tree(self):
         for c in self._children:
