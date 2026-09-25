@@ -76,7 +76,45 @@ and a wxpython version <= 4.1.1."""
 
         # Registers the render-op make_raster. This is used to do cut planning.
         renderer = LaserRender(kernel_root)
-        kernel_root.register("render-op/make_raster", renderer.make_raster)
+
+        def make_raster_on_main_thread(*args, **kwargs):
+            """
+            make_raster draws with wx (Bitmap, MemoryDC, GraphicsContext), which
+            must only happen on the GUI thread. Cut planning usually runs in a
+            worker thread ("threaded plan ..."), and drawing from there
+            aborts the process on X11 with
+            "[xcb] Unknown request in queue while dequeuing".
+            Marshal the call to the main thread and wait for its result.
+            """
+            import threading
+
+            import wx
+
+            app = wx.GetApp()
+            if (
+                wx.IsMainThread()
+                or app is None
+                or not app.IsMainLoopRunning()
+            ):
+                return renderer.make_raster(*args, **kwargs)
+            done = threading.Event()
+            result = {}
+
+            def run():
+                try:
+                    result["value"] = renderer.make_raster(*args, **kwargs)
+                except BaseException as e:
+                    result["error"] = e
+                finally:
+                    done.set()
+
+            wx.CallAfter(run)
+            done.wait()
+            if "error" in result:
+                raise result["error"]
+            return result["value"]
+
+        kernel_root.register("render-op/make_raster", make_raster_on_main_thread)
         kernel_root.register("font/wx_to_svg", wxfont_to_svg)
     if lifecycle == "register":
         from meerk40t.gui.themes import Themes
