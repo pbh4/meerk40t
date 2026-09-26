@@ -382,7 +382,7 @@ class MaterialPanel(ScrolledPanel):
         self._active_operation = None
         self.no_reload = False
         self.share_ready = False
-        self.state_images = wx.ImageList()
+        self.state_images = wx.ImageList(30, 30)
         # Categorisation
         # 0 = Material (thickness), 1 = Lasertype (Material), 2 = Thickness (Material)
         self.categorisation = 0
@@ -2211,9 +2211,7 @@ class MaterialPanel(ScrolledPanel):
         def populate_images() -> dict:
             COLORFUL_BACKGROUND = True
             iconsize = 30
-            self.state_images.Destroy()
-            self.state_images = wx.ImageList()
-            self.state_images.Create(width=iconsize, height=iconsize)
+            self.state_images = wx.ImageList(iconsize, iconsize)
             image_dict = {}
             if self.active_material is not None:
                 for subsection in self.op_data.derivable(self.active_material):

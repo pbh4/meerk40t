@@ -138,8 +138,7 @@ class OperationsPanel(wx.Panel):
             # Intentionally the last...
             ["console", icon_console],
         ]
-        self.options_images = wx.ImageList()
-        self.options_images.Create(width=iconsize, height=iconsize)
+        self.options_images = wx.ImageList(iconsize, iconsize)
         for entry in self.default_images:
             image = entry[1].GetBitmap(resize=(iconsize, iconsize), noadjustment=True)
             image_id1 = self.options_images.Add(bitmap=image)

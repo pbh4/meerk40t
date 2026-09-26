@@ -788,9 +788,8 @@ class ShadowTree:
         self.elements.unlisten_tree(self)
 
     def setup_state_images(self):
-        self.state_images = wx.ImageList()
+        self.state_images = wx.ImageList(self.iconsize, self.iconsize)
         self.iconstates = {}
-        self.state_images.Create(width=self.iconsize, height=self.iconsize)
         image = icons8_lock.GetBitmap(
             resize=(self.iconsize, self.iconsize),
             noadjustment=True,
@@ -1411,8 +1410,7 @@ class ShadowTree:
             if target == "all":
                 # Swap before Destroy: wxtree holds the old ptr until SetImageList replaces it.
                 old_images = self.tree_images
-                self.tree_images = wx.ImageList()
-                self.tree_images.Create(width=self.iconsize, height=self.iconsize)
+                self.tree_images = wx.ImageList(self.iconsize, self.iconsize)
                 self.wxtree.SetImageList(self.tree_images)
                 self.image_cache = []
                 if old_images is not None:

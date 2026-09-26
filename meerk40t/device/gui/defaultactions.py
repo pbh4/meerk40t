@@ -576,12 +576,9 @@ class DefaultActionPanel(wx.Panel):
         testsize = dip_size(self, 20, 20)
         iconsize = testsize[1]
 
-        self.options_images = wx.ImageList()
-        self.options_images.Create(width=iconsize, height=iconsize)
-        self.prepend_images = wx.ImageList()
-        self.prepend_images.Create(width=iconsize, height=iconsize)
-        self.append_images = wx.ImageList()
-        self.append_images.Create(width=iconsize, height=iconsize)
+        self.options_images = wx.ImageList(iconsize, iconsize)
+        self.prepend_images = wx.ImageList(iconsize, iconsize)
+        self.append_images = wx.ImageList(iconsize, iconsize)
         for entry in self.default_images:
             image = entry[self.IMG_ICON].GetBitmap(
                 resize=(iconsize, iconsize), buffer=2, noadjustment=True
