@@ -2764,7 +2764,11 @@ class Elemental(Service):
                     to_be_deleted += 1
         fastmode = to_be_deleted >= 100
         with self._node_lock:
-            for n in reversed(list(self.elems())):
+            # Must walk the whole tree, not just self.elems(): the nodes marked
+            # for deletion include the references inside operations (and
+            # groups). Walking only element nodes left those references behind,
+            # so the planner still burned "deleted" elements.
+            for n in reversed(list(self.flat())):
                 if not hasattr(n, "_mark_delete"):
                     continue
                 if n.type in ("root", "branch elems", "branch reg", "branch ops"):
